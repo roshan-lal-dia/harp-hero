@@ -14,7 +14,7 @@ Harp Hero is a React-based web application for learning chromatic harmonica. It 
 - **Score Parsing**: 
   - **Text (Harp Hero)**: `src/utils/noteParser.ts`
   - **LilyPond (Subset)**: `src/utils/lilyPondParser.ts` (Client-side pitch/duration parsing).
-  - **MusicXML**: `opensheetmusicdisplay` (OSMD) - *Planned integration*.
+  - **MusicXML**: `src/utils/musicXmlParser.ts` (Custom implementation using DOMParser/JSZip).
 - **Icons**: Lucide React
 
 ## Architecture & Data Flow
@@ -38,6 +38,7 @@ Harp Hero is a React-based web application for learning chromatic harmonica. It 
 - **Parsing**: 
   - `src/utils/noteParser.ts`: Standard "C4 D4" parsing.
   - `src/utils/lilyPondParser.ts`: LilyPond "c'4 d'8" parsing (Pitch/Duration/Rests).
+  - `src/utils/musicXmlParser.ts`: MusicXML and .mxl parsing.
 - **Mapping**: `src/utils/noteMappings.ts` maps musical notes to specific harmonica actions (Hole + Blow/Draw + Slide).
 - **Timing**: `calculateTiming` adds duration information based on BPM.
 
@@ -59,10 +60,11 @@ Harp Hero is a React-based web application for learning chromatic harmonica. It 
 - `npm run lint`: Run ESLint.
 
 ### Key Files
-- `src/store/appStore.ts`: Central state logic. Handles input detection (Text vs LilyPond).
+- `src/store/appStore.ts`: Central state logic. Handles input detection (Text vs LilyPond vs XML).
 - `src/utils/audioEngine.ts`: Audio synthesis and playback logic.
 - `src/utils/noteParser.ts`: Standard input processing logic.
 - `src/utils/lilyPondParser.ts`: LilyPond input processing logic.
+- `src/utils/musicXmlParser.ts`: MusicXML input processing logic.
 - `src/utils/constants.ts`: Application-wide constants.
 - `src/components/HarmonicaVisualizer.tsx`: Main visual feedback component.
 
