@@ -90,6 +90,7 @@ const SettingsPanel = () => {
               >
                 <option value="basic">Basic</option>
                 <option value="full">Full</option>
+                <option value="synth">Synth (Fallback)</option>
               </select>
             </div>
           </div>

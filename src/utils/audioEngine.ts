@@ -56,31 +56,35 @@ class AudioEngine {
       await Tone.start();
       
       // Create a fallback synthesizer that sounds more like harmonica
+      // Harmonica: Rich in harmonics, slight vibrato/tremolo naturally
       this.synth = new Tone.PolySynth(Tone.Synth, {
+        volume: -10, // Reduce volume to prevent clipping/cracking
         oscillator: {
-          type: 'sawtooth'
+          type: 'fatsquare', // Square wave is closer to reed instruments
+          count: 2,
+          spread: 20
         },
         envelope: {
           attack: 0.05,
-          decay: 0.1,
-          sustain: 0.8,
-          release: 0.3
+          decay: 0.2,
+          sustain: 0.7,
+          release: 0.4
         }
       }).toDestination();
 
       // Add effects for more realistic sound
       this.vibrato = new Tone.Vibrato({
-        frequency: 5,
-        depth: 0.1
+        frequency: 6,
+        depth: 0.2 // Reduced depth
       }).toDestination();
 
       this.reverb = new Tone.Reverb({
-        decay: 1.5,
-        wet: 0.2
+        decay: 2.0,
+        wet: 0.3
       }).toDestination();
 
       this.filter = new Tone.Filter({
-        frequency: 2000,
+        frequency: 3000, // Open up filter a bit more
         type: 'lowpass',
         rolloff: -12
       }).toDestination();
@@ -148,12 +152,19 @@ class AudioEngine {
   }
 
   /**
-   * Apply a named soundfont (basic/full) by loading the corresponding asset.
+   * Apply a named soundfont (basic/full) or switch to synth
    */
-  async applySoundFont(choice: 'basic' | 'full'): Promise<boolean> {
+  async applySoundFont(choice: 'basic' | 'full' | 'synth'): Promise<boolean> {
+    if (choice === 'synth') {
+      this.useSoundFont = false;
+      this.currentSoundFont = 'synth';
+      await this.initialize();
+      return true;
+    }
+
     const map: Record<'basic' | 'full', string> = {
-      basic: '/harmonica%20soundfont/harmonica%20basic%20soundfont.sf2',
-      full: '/harmonica%20soundfont/harmonica%20full%20soundfont.sf2'
+      basic: '/sf/harmonica-basic.sf2',
+      full: '/sf/harmonica-full.sf2'
     };
 
     const url = map[choice];

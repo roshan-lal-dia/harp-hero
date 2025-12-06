@@ -83,7 +83,7 @@ const NoteInput = () => {
             <span>MusicXML</span>
             <input
               type="file"
-              accept=".xml,.musicxml"
+              accept=".xml,.musicxml,.mxl"
               className="hidden"
               onChange={(e) => handleMusicXmlUpload(e.target.files?.[0] || null)}
             />

@@ -37,7 +37,7 @@ function App() {
 
   // Load selected soundfont on mount and when the choice changes
   useEffect(() => {
-    audioEngine.applySoundFont(settings.soundFont as 'basic' | 'full').catch((err) => {
+    audioEngine.applySoundFont(settings.soundFont as 'basic' | 'full' | 'synth').catch((err) => {
       console.warn('SoundFont load failed, using fallback synth', err);
     });
   }, [settings.soundFont]);
