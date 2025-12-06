@@ -92,30 +92,53 @@ c'4 d'8 e'4 r4        # Pitches with duration and rests
 
 ```
 harp-hero/
+├── .github/                       # GitHub specific configurations (e.g., Copilot instructions)
+├── .gemini/                       # Gemini AI specific configurations and documentation
+├── public/
+│   ├── favicon.svg                # Favicon for the application
+│   └── sf/                        # SoundFont files for SpessaSynth
+│       ├── harmonica-basic.sf2
+│       └── harmonica-full.sf2
 ├── src/
 │   ├── components/
-│   │   ├── HarmonicaVisualizer.tsx # Main harmonica display
-│   │   ├── PlaybackControls.tsx    # Transport and tempo controls
-│   │   ├── TabViewer.tsx           # Scrolling tablature list
-│   │   ├── NoteInput.tsx           # Note input area
-│   │   ├── SongBrowser.tsx         # Song library & upload
-│   │   ├── LearningPlan.tsx        # Practice curriculum
-│   │   └── ...
+│   │   ├── AchievementsPanel.tsx  # Displays user achievements
+│   │   ├── BreathTrainer.tsx      # Component for breath training exercises
+│   │   ├── ErrorBoundary.tsx      # Catches and displays UI errors
+│   │   ├── HarmonicaVisualizer.tsx # Main harmonica display and interaction
+│   │   ├── Header.tsx             # Application header and navigation
+│   │   ├── LearningPlan.tsx       # Manages and displays the 15-day practice plan
+│   │   ├── Metronome.tsx          # Metronome functionality
+│   │   ├── NoteInput.tsx          # Input area for musical notes/sequences
+│   │   ├── Piano.tsx              # Virtual piano keyboard (if applicable)
+│   │   ├── PlaybackControls.tsx   # Controls for audio playback (play, pause, tempo, etc.)
+│   │   ├── SequenceStats.tsx      # Displays statistics about the current note sequence
+│   │   ├── SettingsPanel.tsx      # User settings and preferences
+│   │   ├── SongBrowser.tsx        # Browsing and loading songs/exercises
+│   │   ├── SongTips.tsx           # Displays tips related to the current song
+│   │   └── TabViewer.tsx          # Displays the harmonica tablature
+│   ├── hooks/
+│   │   └── useKeyboardShortcuts.ts # Custom hook for handling keyboard shortcuts
 │   ├── store/
-│   │   └── appStore.ts             # Zustand state management
+│   │   └── appStore.ts            # Zustand store for global state management
 │   ├── utils/
-│   │   ├── noteMappings.ts         # Harmonica note-to-hole mappings
-│   │   ├── noteParser.ts           # Text note parsing
-│   │   ├── lilyPondParser.ts       # LilyPond parsing
-│   │   ├── musicXmlParser.ts       # MusicXML parsing
-│   │   ├── audioEngine.ts          # SpessaSynth/Tone.js audio wrapper
-│   │   └── ...
-│   ├── App.tsx                     # Main app layout
-│   └── index.css                   # Tailwind v4 configuration
-├── public/
-│   └── sf/                         # SoundFont files
-├── package.json
-└── vite.config.ts
+│   │   ├── audioEngine.ts         # Wrapper for audio synthesis and playback
+│   │   ├── constants.ts           # Application-wide constants
+│   │   ├── learningPlan.ts        # Logic for the learning plan
+│   │   ├── lilyPondParser.ts      # Parser for LilyPond musical notation subset
+│   │   ├── musicXmlParser.ts      # Parser for MusicXML and .mxl files
+│   │   ├── noteMappings.ts        # Maps musical notes to harmonica holes/actions
+│   │   ├── noteParser.ts          # Parser for standard text-based musical notes
+│   │   └── songLibrary.ts         # Manages the library of pre-loaded songs
+│   ├── App.tsx                    # Main application component
+│   ├── index.css                  # Global styles including Tailwind CSS configuration
+│   └── main.tsx                   # Entry point for the React application
+├── .gitignore                     # Specifies intentionally untracked files to ignore
+├── index.html                     # Main HTML file
+├── package.json                   # Project dependencies and scripts
+├── package-lock.json              # Records the exact versions of dependencies
+├── tsconfig.json                  # TypeScript configuration for the project
+├── tsconfig.node.json             # TypeScript configuration for Node.js environment
+└── vite.config.ts                 # Vite build tool configuration
 ```
 
 ## Technologies Used
