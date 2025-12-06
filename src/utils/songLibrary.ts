@@ -176,24 +176,24 @@ A5 B5 A5 C6 B5 A5 G5 F#5 E5`,
 };
 
 // Get songs by category
-export function getSongsByCategory(category) {
+export function getSongsByCategory(category: string): Song[] {
   return Object.values(SONGS).filter(song => song.category === category);
 }
 
 // Get songs by difficulty
-export function getSongsByDifficulty(difficulty) {
+export function getSongsByDifficulty(difficulty: number): Song[] {
   return Object.values(SONGS).filter(song => song.difficulty === difficulty);
 }
 
 // Get all categories
-export function getCategories() {
-  const categories = new Set();
+export function getCategories(): string[] {
+  const categories = new Set<string>();
   Object.values(SONGS).forEach(song => categories.add(song.category));
   return Array.from(categories);
 }
 
 // Get song by ID
-export function getSongById(id) {
+export function getSongById(id: string): Song | undefined {
   return Object.values(SONGS).find(song => song.id === id);
 }
 

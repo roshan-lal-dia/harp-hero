@@ -91,7 +91,7 @@ export const NOTE_MAPPINGS: Record<string, NoteMapping> = {
 };
 
 // Note frequencies in Hz (A4 = 440Hz standard tuning)
-export const NOTE_FREQUENCIES = {
+export const NOTE_FREQUENCIES: Record<string, number> = {
   'C4': 261.63, 'C#4': 277.18, 'D4': 293.66, 'D#4': 311.13, 'E4': 329.63, 
   'F4': 349.23, 'F#4': 369.99, 'G4': 392.00, 'G#4': 415.30, 'A4': 440.00, 
   'A#4': 466.16, 'B4': 493.88,
@@ -105,7 +105,7 @@ export const NOTE_FREQUENCIES = {
 };
 
 // MIDI note numbers for SoundFont playback
-export const NOTE_TO_MIDI = {
+export const NOTE_TO_MIDI: Record<string, number> = {
   'C4': 60, 'C#4': 61, 'D4': 62, 'D#4': 63, 'E4': 64, 'F4': 65, 'F#4': 66, 
   'G4': 67, 'G#4': 68, 'A4': 69, 'A#4': 70, 'B4': 71,
   'C5': 72, 'C#5': 73, 'D5': 74, 'D#5': 75, 'E5': 76, 'F5': 77, 'F#5': 78, 
@@ -116,7 +116,7 @@ export const NOTE_TO_MIDI = {
 };
 
 // Reverse mapping: MIDI to Note
-export const MIDI_TO_NOTE = Object.fromEntries(
+export const MIDI_TO_NOTE: Record<number, string> = Object.fromEntries(
   Object.entries(NOTE_TO_MIDI).map(([note, midi]) => [midi, note])
 );
 
@@ -124,13 +124,13 @@ export const MIDI_TO_NOTE = Object.fromEntries(
 export const CHROMATIC_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 // Flat to Sharp equivalents
-export const FLAT_TO_SHARP = {
+export const FLAT_TO_SHARP: Record<string, string> = {
   'Db': 'C#', 'Eb': 'D#', 'Fb': 'E', 'Gb': 'F#', 
   'Ab': 'G#', 'Bb': 'A#', 'Cb': 'B'
 };
 
 // Sharp to Flat equivalents
-export const SHARP_TO_FLAT = {
+export const SHARP_TO_FLAT: Record<string, string> = {
   'C#': 'Db', 'D#': 'Eb', 'E#': 'F', 'F#': 'Gb', 
   'G#': 'Ab', 'A#': 'Bb', 'B#': 'C'
 };
@@ -138,7 +138,7 @@ export const SHARP_TO_FLAT = {
 /**
  * Get harmonica tablature info for a given note
  */
-export function getNoteMapping(note) {
+export function getNoteMapping(note: string): NoteMapping | null {
   // Try direct lookup first
   if (NOTE_MAPPINGS[note]) {
     return NOTE_MAPPINGS[note];
@@ -152,7 +152,7 @@ export function getNoteMapping(note) {
 /**
  * Convert flat notation to sharp notation
  */
-export function normalizeToSharp(note) {
+export function normalizeToSharp(note: string): string {
   // Extract components
   const match = note.match(/^([A-Ga-g])([#b])?(\d)?$/);
   if (!match) return note;
@@ -179,25 +179,25 @@ export function normalizeToSharp(note) {
 /**
  * Get MIDI note number for a note name
  */
-export function getMidiNote(note) {
+export function getMidiNote(note: string): number | undefined {
   const normalized = normalizeToSharp(note);
-  return NOTE_TO_MIDI[normalized] || null;
+  return NOTE_TO_MIDI[normalized];
 }
 
 /**
  * Get frequency for a note
  */
-export function getFrequency(note) {
+export function getFrequency(note: string): number | null {
   const normalized = normalizeToSharp(note);
-  return NOTE_FREQUENCIES[normalized] || null;
+  return NOTE_FREQUENCIES[normalized] ?? null;
 }
 
 /**
  * Transpose a note by semitones
  */
-export function transposeNote(note, semitones) {
+export function transposeNote(note: string, semitones: number): string | null {
   const midi = getMidiNote(note);
-  if (midi === null) return null;
+  if (midi === undefined) return null;
   
   const newMidi = midi + semitones;
   return MIDI_TO_NOTE[newMidi] || null;
@@ -206,9 +206,9 @@ export function transposeNote(note, semitones) {
 /**
  * Calculate interval between two notes in semitones
  */
-export function getInterval(note1, note2) {
+export function getInterval(note1: string, note2: string): number | null {
   const midi1 = getMidiNote(note1);
   const midi2 = getMidiNote(note2);
-  if (midi1 === null || midi2 === null) return null;
+  if (midi1 === undefined || midi2 === undefined) return null;
   return midi2 - midi1;
 }

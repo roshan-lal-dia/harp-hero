@@ -1,23 +1,53 @@
-import React from 'react';
-import { Info, ListMusic, Sparkles } from 'lucide-react';
+import { Info, ListMusic, Sparkles, FileMusic } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
-import { SONGS, getCategories } from '../utils/songLibrary';
+import { SONGS } from '../utils/songLibrary';
+import { useState } from 'react';
 
 const NoteInput = () => {
-  const { inputText, setInputText, parseAndLoadSequence, loadSong } = useAppStore();
+  const { inputText, setInputText, parseAndLoadSequence, loadSong, loadMusicXml, loadMusicXmlBuffer } = useAppStore();
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
 
   const handleParse = () => {
     parseAndLoadSequence(inputText);
   };
 
-  const handleLoadPreset = (songKey) => {
+  const handleLoadPreset = (songKey: string) => {
     const song = SONGS[songKey];
     if (song) {
       loadSong(song);
     }
   };
 
-  const categories = getCategories();
+  const handleMusicXmlUpload = async (file: File | null) => {
+    if (!file) return;
+    setUploadStatus('Loading...');
+    const isMxl = file.name.toLowerCase().endsWith('.mxl');
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        if (isMxl && reader.result instanceof ArrayBuffer) {
+          const parsed = await loadMusicXmlBuffer(reader.result);
+          setUploadStatus(parsed.length ? `Loaded ${parsed.length} notes from MXL` : 'No notes found in file');
+          setInputText('');
+        } else {
+          const text = reader.result?.toString() || '';
+          const parsed = loadMusicXml(text);
+          setUploadStatus(parsed.length ? `Loaded ${parsed.length} notes from MusicXML` : 'No notes found in file');
+          setInputText('');
+        }
+      } catch (err) {
+        console.error(err);
+        setUploadStatus('Failed to parse file');
+      }
+    };
+    reader.onerror = () => setUploadStatus('Failed to read MusicXML file');
+    if (isMxl) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
+  };
 
   return (
     <div className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md">
@@ -48,6 +78,16 @@ const NoteInput = () => {
           >
             Chromatic
           </button>
+          <label className="flex items-center gap-1 text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-slate-200 transition-colors cursor-pointer">
+            <FileMusic className="w-3 h-3" />
+            <span>MusicXML</span>
+            <input
+              type="file"
+              accept=".xml,.musicxml"
+              className="hidden"
+              onChange={(e) => handleMusicXmlUpload(e.target.files?.[0] || null)}
+            />
+          </label>
           
           {/* Main Song */}
           <button
@@ -90,6 +130,12 @@ Use # for sharps, b for flats"
           Parse & Load
         </button>
       </div>
+
+      {uploadStatus && (
+        <div className="mt-2 text-xs text-emerald-400 bg-emerald-900/30 border border-emerald-700/40 rounded-lg px-3 py-2">
+          {uploadStatus}
+        </div>
+      )}
 
       {/* Quick Songs Dropdown */}
       <div className="mt-4 pt-4 border-t border-slate-700">

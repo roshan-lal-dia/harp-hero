@@ -1,10 +1,10 @@
-import React, { useMemo } from 'react';
-import { BarChart2, Music, Target, Clock, TrendingUp, Award } from 'lucide-react';
+import { useMemo } from 'react';
+import { BarChart2, Music, Target, TrendingUp } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { getSequenceStats } from '../utils/noteParser';
 
 const SequenceStats = () => {
-  const { sequence, currentSong, practiceStats } = useAppStore();
+  const { sequence } = useAppStore();
 
   const stats = useMemo(() => {
     return getSequenceStats(sequence);
@@ -27,11 +27,6 @@ const SequenceStats = () => {
 
   // Get most used notes
   const topNotes = Object.entries(stats.noteFrequency)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
-
-  // Get most used holes
-  const topHoles = Object.entries(stats.holeUsage)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
 
@@ -63,7 +58,7 @@ const SequenceStats = () => {
         <div className="text-xs text-slate-400 mb-2">Note Range</div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-cyan-400 font-mono">
-            {stats.range.lowest ? `MIDI ${stats.range.lowest}` : '-'}
+            {stats.range.lowest !== Infinity ? `MIDI ${stats.range.lowest}` : '-'}
           </span>
           <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
             <div 
@@ -72,11 +67,11 @@ const SequenceStats = () => {
             />
           </div>
           <span className="text-sm text-rose-400 font-mono">
-            {stats.range.highest ? `MIDI ${stats.range.highest}` : '-'}
+            {stats.range.highest !== -Infinity ? `MIDI ${stats.range.highest}` : '-'}
           </span>
         </div>
         <div className="text-center text-xs text-slate-500 mt-1">
-          Span: {stats.range.span} semitones ({(stats.range.span / 12).toFixed(1)} octaves)
+          Span: {stats.range.span > 0 ? stats.range.span : 0} semitones ({(Math.max(0, stats.range.span) / 12).toFixed(1)} octaves)
         </div>
       </div>
 

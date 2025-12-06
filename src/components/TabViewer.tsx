@@ -1,11 +1,11 @@
-import React, { useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { Wind } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 
 const TabViewer = () => {
-  const { sequence, currentIndex, setCurrentIndex, isPlaying, settings } = useAppStore();
-  const activeRef = useRef(null);
-  const containerRef = useRef(null);
+  const { sequence, currentIndex, setCurrentIndex, settings } = useAppStore();
+  const activeRef = useRef<HTMLButtonElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to active note
   useEffect(() => {
@@ -17,7 +17,7 @@ const TabViewer = () => {
     }
   }, [currentIndex, settings.autoScroll]);
 
-  const handleNoteClick = (index) => {
+  const handleNoteClick = (index: number) => {
     setCurrentIndex(index);
   };
 

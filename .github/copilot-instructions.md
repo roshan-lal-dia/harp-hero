@@ -6,9 +6,15 @@ Harp Hero is a React-based web application for learning chromatic harmonica. It 
 ## Tech Stack
 - **Framework**: React 19 + Vite
 - **Language**: TypeScript
-- **Styling**: Tailwind CSS (with semantic colors)
+- **Styling**: Tailwind CSS v4 (Native CSS configuration)
 - **State Management**: Zustand (`src/store/appStore.ts`)
-- **Audio**: Tone.js + soundfont-player (`src/utils/audioEngine.ts`)
+- **Audio**: 
+  - **Synthesis**: Tone.js
+  - **SoundFonts**: SpessaSynth (`spessasynth_core`, `spessasynth_lib`)
+- **Score Parsing**: 
+  - **Text (Harp Hero)**: `src/utils/noteParser.ts`
+  - **LilyPond (Subset)**: `src/utils/lilyPondParser.ts` (Client-side pitch/duration parsing).
+  - **MusicXML**: `opensheetmusicdisplay` (OSMD) - *Planned integration*.
 - **Icons**: Lucide React
 
 ## Architecture & Data Flow
@@ -23,28 +29,27 @@ Harp Hero is a React-based web application for learning chromatic harmonica. It 
 
 ### Audio Engine
 - **Singleton Pattern**: `AudioEngine` class in `src/utils/audioEngine.ts`.
-- **Tone.js Integration**: Uses `Tone.PolySynth` as a fallback and `Tone.Sampler` for SoundFonts.
-- **Effects Chain**: Synth -> Vibrato -> Filter -> Reverb -> Destination.
+- **Implementation**: Hybrid approach.
+  - **Simple**: Tone.js PolySynth for basic fallback.
+  - **Advanced**: SpessaSynth for high-quality SoundFont (.sf2) playback and MIDI handling.
 - **Usage**: Components should not instantiate `AudioEngine` directly but use the instance provided via context or imported singleton.
 
 ### Core Logic (Note Processing)
-- **Parsing**: `src/utils/noteParser.ts` converts raw text (e.g., "C4 D4") into normalized note objects.
+- **Parsing**: 
+  - `src/utils/noteParser.ts`: Standard "C4 D4" parsing.
+  - `src/utils/lilyPondParser.ts`: LilyPond "c'4 d'8" parsing (Pitch/Duration/Rests).
 - **Mapping**: `src/utils/noteMappings.ts` maps musical notes to specific harmonica actions (Hole + Blow/Draw + Slide).
 - **Timing**: `calculateTiming` adds duration information based on BPM.
-- **Constants**: Use `src/utils/constants.ts` for shared values like `ACTION_BLOW`, `ACTION_DRAW`.
 
 ## Component Patterns
 
 ### Visualizer (`HarmonicaVisualizer.tsx`)
 - **Direct DOM Manipulation**: Uses `useRef` for hole elements to perform high-frequency animations (active state) without triggering full React re-renders.
-- **Dynamic Styling**: Uses semantic Tailwind colors defined in `tailwind.config.js`:
-  - **Blow**: `harp-blow` (Cyan)
-  - **Draw**: `harp-draw` (Rose)
-  - **Slide**: `harp-slide` (Amber)
+- **Dynamic Styling**: Uses CSS variables and Tailwind utility classes.
 
 ### UI Components
 - **Functional Components**: Use React hooks (`useState`, `useEffect`, `useCallback`).
-- **Tailwind**: Use utility classes for layout and styling. Prefer semantic colors (`text-harp-blow`) over raw colors (`text-cyan-400`) where possible.
+- **Tailwind**: Use utility classes. Configuration is now in `src/index.css` (Tailwind v4).
 
 ## Development Workflow
 
@@ -54,14 +59,15 @@ Harp Hero is a React-based web application for learning chromatic harmonica. It 
 - `npm run lint`: Run ESLint.
 
 ### Key Files
-- `src/store/appStore.ts`: Central state logic.
+- `src/store/appStore.ts`: Central state logic. Handles input detection (Text vs LilyPond).
 - `src/utils/audioEngine.ts`: Audio synthesis and playback logic.
-- `src/utils/noteParser.ts`: Input processing logic.
+- `src/utils/noteParser.ts`: Standard input processing logic.
+- `src/utils/lilyPondParser.ts`: LilyPond input processing logic.
 - `src/utils/constants.ts`: Application-wide constants.
 - `src/components/HarmonicaVisualizer.tsx`: Main visual feedback component.
 
 ## Common Tasks
 - **Adding a new setting**: Update `settings` object in `appStore.ts` and add a toggle in the settings UI.
-- **Modifying Audio**: Tweak `AudioEngine` class. Ensure `Tone.start()` is called before any audio playback (usually on first user interaction).
+- **Modifying Audio**: Tweak `AudioEngine` class.
 - **New Note Syntax**: Update `normalizeNote` in `noteParser.ts`.
-- **Theming**: Update `tailwind.config.js` `colors.harp` object to change global theme colors.
+- **Theming**: Update `src/index.css` CSS variables.

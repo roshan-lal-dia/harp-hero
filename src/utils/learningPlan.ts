@@ -3,8 +3,33 @@
  * Creates personalized practice schedules for chromatic harmonica
  */
 
-export function generateLearningPlan(song, bpm = 120) {
-  const plan = [
+import { Song } from './songLibrary';
+
+export interface DayPlan {
+  day: number;
+  title: string;
+  focus: string;
+  warmup: string;
+  exercises: string[];
+  songWork: string;
+  tips: string[];
+  duration: string;
+}
+
+export interface Drill {
+  name: string;
+  description: string;
+  duration: string;
+}
+
+export interface DailyDrills {
+  warmup: Drill[];
+  technique: Drill[];
+  cooldown: Drill[];
+}
+
+export function generateLearningPlan(_song: Song | null, bpm = 120): DayPlan[] {
+  const plan: DayPlan[] = [
     {
       day: 1,
       title: 'Foundation: Single Notes',
@@ -279,7 +304,7 @@ export function generateLearningPlan(song, bpm = 120) {
   return plan;
 }
 
-export function getDailyDrills() {
+export function getDailyDrills(): DailyDrills {
   return {
     warmup: [
       { name: 'Long Tones', description: 'Hold each note for 8 counts', duration: '3 min' },

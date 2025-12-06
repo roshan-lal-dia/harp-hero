@@ -1,20 +1,24 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Timer, X, Volume2 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { audioEngine } from '../utils/audioEngine';
 
-const Metronome = ({ onClose }) => {
-  const { bpm, setBpm, isPlaying } = useAppStore();
+interface MetronomeProps {
+  onClose: () => void;
+}
+
+const Metronome = ({ onClose }: MetronomeProps) => {
+  const { bpm, setBpm } = useAppStore();
   const [isMetronomeOn, setIsMetronomeOn] = useState(false);
   const [beatCount, setBeatCount] = useState(0);
   const [beatsPerMeasure, setBeatsPerMeasure] = useState(4);
   const [volume, setVolume] = useState(50);
   const [accentFirst, setAccentFirst] = useState(true);
   
-  const intervalRef = useRef(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const beatRef = useRef(0);
 
-  const playClick = useCallback(async (isDownbeat) => {
+  const playClick = useCallback(async (isDownbeat: boolean) => {
     await audioEngine.initialize();
     await audioEngine.playMetronomeClick(isDownbeat && accentFirst);
   }, [accentFirst]);

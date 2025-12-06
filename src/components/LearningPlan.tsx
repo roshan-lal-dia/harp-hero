@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { CheckCircle2, Circle, Clock, Target, BookOpen } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { generateLearningPlan, getDailyDrills } from '../utils/learningPlan';
@@ -16,7 +16,7 @@ const LearningPlan = () => {
   const plan = useMemo(() => generateLearningPlan(null, bpm), [bpm]);
   const drills = getDailyDrills();
 
-  const getDayStatus = (day) => {
+  const getDayStatus = (day: number) => {
     if (completedDays.includes(day)) return 'completed';
     if (day === currentDay) return 'current';
     if (day < currentDay) return 'skipped';

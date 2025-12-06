@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
-import { Music, Star, Clock, ChevronRight, Search, Filter } from 'lucide-react';
+import { useState } from 'react';
+import { Music, Clock, ChevronRight, Search, Filter } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
-import { SONGS, getCategories, getSongsByCategory, DIFFICULTY } from '../utils/songLibrary';
+import { SONGS, getCategories, Song } from '../utils/songLibrary';
 
-const SongBrowser = ({ isOpen, onClose }) => {
+interface SongBrowserProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const SongBrowser = ({ isOpen, onClose }: SongBrowserProps) => {
   const { loadSong, currentSong } = useAppStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -18,17 +23,17 @@ const SongBrowser = ({ isOpen, onClose }) => {
     return matchesSearch && matchesCategory && matchesDifficulty;
   });
 
-  const handleSelectSong = (song) => {
+  const handleSelectSong = (song: Song) => {
     loadSong(song);
     onClose?.();
   };
 
-  const getDifficultyLabel = (level) => {
+  const getDifficultyLabel = (level: number) => {
     const labels = ['', 'Beginner', 'Easy', 'Intermediate', 'Advanced', 'Expert'];
     return labels[level] || '';
   };
 
-  const getDifficultyColor = (level) => {
+  const getDifficultyColor = (level: number) => {
     const colors = ['', 'text-green-400', 'text-cyan-400', 'text-amber-400', 'text-orange-400', 'text-rose-400'];
     return colors[level] || 'text-slate-400';
   };

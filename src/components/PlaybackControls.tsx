@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, MouseEvent } from 'react';
 import { Play, Pause, SkipBack, SkipForward, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { audioEngine } from '../utils/audioEngine';
@@ -22,7 +22,7 @@ const PlaybackControls = () => {
     getProgress
   } = useAppStore();
 
-  const intervalRef = useRef(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const progress = getProgress();
 
   // Initialize audio on first interaction
@@ -62,7 +62,7 @@ const PlaybackControls = () => {
   // Play sound when note changes
   useEffect(() => {
     const currentNote = sequence[currentIndex];
-    if (currentNote && !currentNote.error && !currentNote.isRest && isPlaying) {
+    if (currentNote && !currentNote.error && !currentNote.isRest && isPlaying && currentNote.pitch) {
       const duration = (currentNote.duration?.beats || 1) * (60 / bpm);
       audioEngine.playHarmonicaNote(currentNote, duration);
     }
@@ -86,7 +86,7 @@ const PlaybackControls = () => {
 
   const handlePrev = useCallback(() => {
     const currentNote = sequence[currentIndex - 1];
-    if (currentNote && !currentNote.error) {
+    if (currentNote && !currentNote.error && currentNote.pitch) {
       const freq = getFrequency(currentNote.pitch);
       if (freq) {
         audioEngine.playHarmonicaNote(currentNote, 0.5);
@@ -103,7 +103,7 @@ const PlaybackControls = () => {
     nextNote();
   }, [nextNote, sequence, currentIndex]);
 
-  const handleSeek = useCallback((e) => {
+  const handleSeek = useCallback((e: MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const percentage = x / rect.width;

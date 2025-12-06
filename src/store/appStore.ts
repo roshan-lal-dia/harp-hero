@@ -1,13 +1,10 @@
-/**
- * HarpHero Application State Store
- * Using Zustand for state management
- */
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { parseNoteSequence, calculateTiming, Note } from '../utils/noteParser';
+import { parseLilyPondSequence } from '../utils/lilyPondParser';
+import { parseMusicXml, parseMusicXmlFromBuffer } from '../utils/musicXmlParser';
 import { DEFAULT_SONG, Song } from '../utils/songLibrary';
-import { generateLearningPlan } from '../utils/learningPlan';
+import { generateLearningPlan, DayPlan } from '../utils/learningPlan';
 
 interface AppState {
   // Sequence State
@@ -15,6 +12,9 @@ interface AppState {
   sequence: Note[];
   currentIndex: number;
   
+  // Transient State (for Piano/Free Play)
+  transientNote: Note | null;
+
   // Playback State
   isPlaying: boolean;
   bpm: number;
@@ -24,6 +24,7 @@ interface AppState {
   activeTab: 'play' | 'learn' | 'songs' | 'settings';
   showPlan: boolean;
   showMetronome: boolean;
+  showSettings: boolean;
   practiceMode: 'normal' | 'slow' | 'loop';
   
   // Learning State
@@ -53,8 +54,12 @@ interface AppState {
   
   // Actions
   setInputText: (text: string) => void;
+  setSequence: (notes: Note[]) => void;
   parseAndLoadSequence: (text?: string | null) => Note[];
+  loadMusicXml: (xml: string) => Note[];
+  loadMusicXmlBuffer: (buffer: ArrayBuffer) => Promise<Note[]>;
   setCurrentIndex: (index: number) => void;
+  setTransientNote: (note: Note | null) => void;
   nextNote: () => void;
   prevNote: () => void;
   togglePlay: () => void;
@@ -66,6 +71,7 @@ interface AppState {
   setActiveTab: (tab: 'play' | 'learn' | 'songs' | 'settings') => void;
   togglePlan: () => void;
   toggleMetronome: () => void;
+  toggleSettings: () => void;
   setPracticeMode: (mode: 'normal' | 'slow' | 'loop') => void;
   loadSong: (song: Song) => void;
   setCurrentDay: (day: number) => void;
@@ -75,7 +81,7 @@ interface AppState {
   setLoop: (start: number, end: number) => void;
   clearLoop: () => void;
   getCurrentNote: () => Note | null;
-  getLearningPlan: () => any;
+  getLearningPlan: () => DayPlan[];
   getProgress: () => number;
 }
 
@@ -86,6 +92,7 @@ export const useAppStore = create<AppState>()(
       inputText: DEFAULT_SONG.notes,
       sequence: [],
       currentIndex: 0,
+      transientNote: null,
       
       // Playback State
       isPlaying: false,
@@ -96,6 +103,7 @@ export const useAppStore = create<AppState>()(
       activeTab: 'play', // 'play', 'learn', 'songs', 'settings'
       showPlan: false,
       showMetronome: false,
+      showSettings: false,
       practiceMode: 'normal', // 'normal', 'slow', 'loop'
       
       // Learning State
@@ -125,17 +133,64 @@ export const useAppStore = create<AppState>()(
       
       // Actions
       setInputText: (text) => set({ inputText: text }),
+
+      setSequence: (notes) => {
+        const bpm = get().bpm;
+        const timedSequence = calculateTiming(notes, bpm);
+        set({
+            sequence: timedSequence,
+            currentIndex: 0,
+            isPlaying: false
+        });
+      },
       
       parseAndLoadSequence: (text = null) => {
         const inputText = text || get().inputText;
-        const parsed = parseNoteSequence(inputText);
+        let parsed: Note[];
+
+        const trimmed = inputText.trim();
+        const looksLikeMusicXml = trimmed.startsWith('<score-partwise') || trimmed.includes('<measure');
+
+        // Simple heuristic for formats
+        if (looksLikeMusicXml) {
+          parsed = parseMusicXml(inputText);
+        } else if (inputText.includes("'") || inputText.includes("\\") || inputText.includes("{")) {
+          parsed = parseLilyPondSequence(inputText);
+        } else {
+          parsed = parseNoteSequence(inputText);
+        }
+
         const bpm = get().bpm;
         const timedSequence = calculateTiming(parsed, bpm);
-        set({ 
-          sequence: timedSequence, 
-          currentIndex: 0, 
+        set({
+          sequence: timedSequence,
+          currentIndex: 0,
           isPlaying: false,
           inputText: text || get().inputText
+        });
+        return timedSequence;
+      },
+
+      loadMusicXml: (xml) => {
+        const parsed = parseMusicXml(xml);
+        const bpm = get().bpm;
+        const timedSequence = calculateTiming(parsed, bpm);
+        set({
+          sequence: timedSequence,
+          currentIndex: 0,
+          isPlaying: false
+        });
+        return timedSequence;
+      },
+
+      loadMusicXmlBuffer: async (buffer) => {
+        const parsed = await parseMusicXmlFromBuffer(buffer);
+        const bpm = get().bpm;
+        const timedSequence = calculateTiming(parsed, bpm);
+        set({
+          sequence: timedSequence,
+          currentIndex: 0,
+          isPlaying: false
         });
         return timedSequence;
       },
@@ -146,9 +201,11 @@ export const useAppStore = create<AppState>()(
           set({ currentIndex: index });
         }
       },
+
+      setTransientNote: (note) => set({ transientNote: note }),
       
       nextNote: () => {
-        const { currentIndex, sequence, settings, isPlaying } = get();
+        const { currentIndex, sequence, settings } = get();
         const nextIndex = currentIndex + 1;
         
         // Loop handling
@@ -185,7 +242,13 @@ export const useAppStore = create<AppState>()(
         // Recalculate timing
         const { sequence, inputText } = get();
         if (sequence.length > 0) {
-          const parsed = parseNoteSequence(inputText);
+          let parsed: Note[];
+          if (inputText.includes("'") || inputText.includes("\\") || inputText.includes("{")) {
+             parsed = parseLilyPondSequence(inputText);
+          } else {
+             parsed = parseNoteSequence(inputText);
+          }
+          
           const timedSequence = calculateTiming(parsed, bpm);
           set({ sequence: timedSequence });
         }
@@ -198,6 +261,8 @@ export const useAppStore = create<AppState>()(
       togglePlan: () => set((state) => ({ showPlan: !state.showPlan })),
       
       toggleMetronome: () => set((state) => ({ showMetronome: !state.showMetronome })),
+
+      toggleSettings: () => set((state) => ({ showSettings: !state.showSettings })),
       
       setPracticeMode: (mode) => set({ practiceMode: mode }),
       
@@ -261,7 +326,11 @@ export const useAppStore = create<AppState>()(
       
       // Getters
       getCurrentNote: () => {
-        const { sequence, currentIndex } = get();
+        const { currentIndex, sequence, transientNote, isPlaying } = get();
+        // If user is interacting with Piano (not playing song), show that
+        if (!isPlaying && transientNote) {
+            return transientNote;
+        }
         return sequence[currentIndex] || null;
       },
       

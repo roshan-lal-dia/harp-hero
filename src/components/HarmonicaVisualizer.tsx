@@ -1,22 +1,24 @@
-import React, { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Wind } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
-import { ACTION_BLOW, ACTION_DRAW } from '../utils/constants';
+import { ACTION_BLOW } from '../utils/constants';
 
 const HarmonicaVisualizer = () => {
-  const { sequence, currentIndex } = useAppStore();
-  const currentNote = sequence[currentIndex];
+  const { getCurrentNote, sequence, currentIndex } = useAppStore();
+  const currentNote = getCurrentNote();
   
-  const holeRefs = useRef([]);
+  const holeRefs = useRef<(HTMLDivElement | null)[]>([]);
   
   // Animate the active hole
   useEffect(() => {
-    if (currentNote && !currentNote.error && holeRefs.current[currentNote.hole - 1]) {
+    if (currentNote && !currentNote.error && currentNote.hole && holeRefs.current[currentNote.hole - 1]) {
       const hole = holeRefs.current[currentNote.hole - 1];
-      hole.classList.remove('hole-blow', 'hole-draw');
-      // Force reflow
-      void hole.offsetWidth;
-      hole.classList.add(currentNote.action === ACTION_BLOW ? 'hole-blow' : 'hole-draw');
+      if (hole) {
+        hole.classList.remove('hole-blow', 'hole-draw');
+        // Force reflow
+        void hole.offsetWidth;
+        hole.classList.add(currentNote.action === ACTION_BLOW ? 'hole-blow' : 'hole-draw');
+      }
     }
   }, [currentIndex, currentNote]);
 
@@ -87,7 +89,7 @@ const HarmonicaVisualizer = () => {
             <span className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-3">Hole</span>
             <span className="text-6xl font-mono font-bold text-white">{currentNote.hole}</span>
             <div className="text-xs text-slate-500 mt-2">
-              {currentNote.hole <= 4 ? 'Low Octave' : currentNote.hole <= 8 ? 'Mid Octave' : 'High Octave'}
+              {currentNote.hole && (currentNote.hole <= 4 ? 'Low Octave' : currentNote.hole <= 8 ? 'Mid Octave' : 'High Octave')}
             </div>
           </div>
 
@@ -138,8 +140,7 @@ const HarmonicaVisualizer = () => {
           <div className="absolute -bottom-2 left-0 right-0 h-3 bg-gradient-to-t from-slate-600 to-slate-500 rounded-b-lg shadow-lg" />
           
           {/* Comb (Main Body) */}
-          <div className="h-24 bg-gradient-to-b from-slate-200 via-slate-300 to-slate-400 rounded-lg shadow-xl flex items-center justify-between px-4 border-t-4 border-t-slate-100 border-b-4 border-b-slate-500 relative overflow-hidden">
-            
+          <div className="h-24 bg-gradient-to-b from-slate-200 via-slate-300 to-slate-400 rounded-lg shadow-xl px-4 border-t-4 border-t-slate-100 border-b-4 border-b-slate-500 relative overflow-hidden flex items-center">
             {/* Slide Mechanism */}
             <div className={`absolute top-0 right-0 bottom-0 w-10 bg-gradient-to-l from-slate-400 to-slate-300 border-l-2 border-slate-500 transition-transform duration-100 z-0 ${
               currentNote && currentNote.slide ? '-translate-x-2 slide-active' : 'translate-x-0'
@@ -150,62 +151,58 @@ const HarmonicaVisualizer = () => {
             </div>
 
             {/* Holes */}
-            {[...Array(12)].map((_, i) => {
-              const holeNum = i + 1;
-              const isActive = currentNote && !currentNote.error && currentNote.hole === holeNum;
-              
-              return (
-                <div
-                  key={i}
-                  ref={el => holeRefs.current[i] = el}
-                  className={`relative flex-1 h-16 mx-[2px] z-10 transition-all duration-150 ${
-                    isActive ? 'scale-110' : ''
-                  }`}
-                >
-                  {/* Hole Number */}
-                  <span className={`absolute -top-7 left-1/2 -translate-x-1/2 text-xs font-bold font-mono transition-colors ${
-                    isActive ? 'text-amber-400' : 'text-slate-600'
-                  }`}>
-                    {holeNum}
-                  </span>
+            <div className="relative z-10 grid grid-cols-12 gap-2 w-full">
+              {Array.from({ length: 12 }).map((_, i) => {
+                const holeNumber = i + 1;
+                const isActive = currentNote?.hole === holeNumber;
+                const isBlow = currentNote?.action === ACTION_BLOW;
+                const slideOn = currentNote?.slide;
 
-                  {/* Hole Opening */}
-                  <div className={`w-full h-full rounded-sm border-2 shadow-inner transition-all duration-150 ${
-                    isActive
-                      ? currentNote.action === 'blow'
-                        ? 'bg-cyan-500 border-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.8)]'
-                        : 'bg-rose-500 border-rose-300 shadow-[0_0_20px_rgba(244,63,94,0.8)]'
-                      : 'bg-slate-800 border-slate-700'
-                  }`}>
-                    {/* Airflow indicator */}
+                return (
+                  <div
+                    key={holeNumber}
+                    ref={(el) => {
+                      holeRefs.current[i] = el;
+                    }}
+                    className={`relative h-14 rounded-md border-2 flex items-center justify-center overflow-hidden transition-all duration-200 ${
+                      isActive
+                        ? isBlow
+                          ? 'bg-cyan-600/70 border-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.5)]'
+                          : 'bg-rose-600/70 border-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.5)]'
+                        : 'bg-slate-800/80 border-slate-600'
+                    }`}
+                  >
+                    {/* Slide accent */}
+                    {slideOn && (
+                      <div className="absolute inset-0 bg-amber-500/15" />
+                    )}
+
+                    <div className="relative flex flex-col items-center gap-1">
+                      <span className="text-sm font-bold text-white">{holeNumber}</span>
+                      <span className="text-[11px] uppercase tracking-wide text-slate-200">
+                        {isBlow ? 'Blow' : 'Draw'}
+                      </span>
+                      {slideOn && (
+                        <span className="text-[10px] text-amber-300 font-semibold">Slide In</span>
+                      )}
+                    </div>
+
                     {isActive && (
-                      <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
-                        {currentNote.action === 'blow' ? (
-                          <div className="flex flex-col items-center gap-1">
-                            <div className="w-2 h-2 bg-white/60 rounded-full airflow-blow" />
-                            <div className="w-2 h-2 bg-white/40 rounded-full airflow-blow" style={{ animationDelay: '0.1s' }} />
-                            <div className="w-2 h-2 bg-white/20 rounded-full airflow-blow" style={{ animationDelay: '0.2s' }} />
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-1">
-                            <div className="w-2 h-2 bg-white/20 rounded-full airflow-draw" />
-                            <div className="w-2 h-2 bg-white/40 rounded-full airflow-draw" style={{ animationDelay: '0.1s' }} />
-                            <div className="w-2 h-2 bg-white/60 rounded-full airflow-draw" style={{ animationDelay: '0.2s' }} />
-                          </div>
-                        )}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className={`w-2 h-10 rounded-full blur-sm ${isBlow ? 'bg-white/60 airflow-blow' : 'bg-white/40 airflow-draw'}`} />
                       </div>
                     )}
-                  </div>
 
-                  {/* Reed Type Indicator (below hole) */}
-                  <span className={`absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-mono ${
-                    isActive ? 'text-slate-300' : 'text-slate-600'
-                  }`}>
-                    {i < 4 ? 'L' : i < 8 ? 'M' : 'H'}
-                  </span>
-                </div>
-              );
-            })}
+                    {/* Reed Type Indicator */}
+                    <span className={`absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] font-mono ${
+                      isActive ? 'text-slate-300' : 'text-slate-600'
+                    }`}>
+                      {i < 4 ? 'L' : i < 8 ? 'M' : 'H'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 

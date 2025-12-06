@@ -1,13 +1,17 @@
-import React from 'react';
 import { Music, BookOpen, Timer, Settings, BarChart2 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 
-const Header = ({ onMetronomeClick }) => {
+interface HeaderProps {
+  onMetronomeClick: () => void;
+}
+
+const Header = ({ onMetronomeClick }: HeaderProps) => {
   const { 
     showPlan, 
     togglePlan,
     currentSong,
-    practiceStats 
+    practiceStats,
+    toggleSettings
   } = useAppStore();
 
   return (
@@ -80,6 +84,7 @@ const Header = ({ onMetronomeClick }) => {
 
           {/* Settings */}
           <button
+            onClick={toggleSettings}
             className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-400 hover:text-white"
             title="Settings"
           >
