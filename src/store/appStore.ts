@@ -6,6 +6,33 @@ import { parseMusicXml, parseMusicXmlFromBuffer } from '../utils/musicXmlParser'
 import { DEFAULT_SONG, Song } from '../utils/songLibrary';
 import { generateLearningPlan, DayPlan } from '../utils/learningPlan';
 
+// Achievement definitions
+export interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  unlockedAt?: number;
+}
+
+export const ACHIEVEMENTS: Achievement[] = [
+  { id: 'first-note', name: 'First Note', description: 'Play your first note', icon: '🎵' },
+  { id: 'first-song', name: 'Song Starter', description: 'Complete your first song', icon: '🎶' },
+  { id: 'ten-songs', name: 'Melody Master', description: 'Complete 10 different songs', icon: '🏅' },
+  { id: 'practice-streak-3', name: 'Consistent Player', description: 'Practice 3 days in a row', icon: '🔥' },
+  { id: 'practice-streak-7', name: 'Week Warrior', description: 'Practice 7 days in a row', icon: '💪' },
+  { id: 'practice-streak-30', name: 'Monthly Master', description: 'Practice 30 days in a row', icon: '👑' },
+  { id: 'hour-played', name: 'Dedicated', description: 'Practice for 1 hour total', icon: '⏱️' },
+  { id: 'five-hours', name: 'Enthusiast', description: 'Practice for 5 hours total', icon: '🌟' },
+  { id: 'slide-master', name: 'Slide Master', description: 'Play 100 notes with slide', icon: '🎹' },
+  { id: 'chromatic-complete', name: 'Chromatic Champion', description: 'Play all 12 chromatic notes', icon: '🌈' },
+  { id: 'speed-demon', name: 'Speed Demon', description: 'Complete a song at 150+ BPM', icon: '⚡' },
+  { id: 'perfect-run', name: 'Perfect Run', description: 'Complete a song without stopping', icon: '✨' },
+  { id: 'explorer', name: 'Explorer', description: 'Try songs from 5 different categories', icon: '🗺️' },
+  { id: 'night-owl', name: 'Night Owl', description: 'Practice after midnight', icon: '🦉' },
+  { id: 'early-bird', name: 'Early Bird', description: 'Practice before 7 AM', icon: '🐦' },
+];
+
 interface AppState {
   // Sequence State
   inputText: string;
@@ -26,6 +53,8 @@ interface AppState {
   showMetronome: boolean;
   showSettings: boolean;
   practiceMode: 'normal' | 'slow' | 'loop';
+  showAchievements: boolean;
+  showStats: boolean;
   
   // Learning State
   currentDay: number;
@@ -34,7 +63,19 @@ interface AppState {
     totalTime: number;
     sessionsCompleted: number;
     notesPlayed: number;
+    slideNotesPlayed: number;
+    songsCompleted: number;
+    perfectRuns: number;
+    categoriesExplored: string[];
+    notesPlayedToday: number;
+    uniqueNotesPlayed: string[];
   };
+  
+  // Achievement & Streak State
+  achievements: string[];
+  practiceStreak: number;
+  lastPracticeDate: string | null;
+  completedSongs: string[];
   
   // Song State
   currentSong: Song;
@@ -50,6 +91,8 @@ interface AppState {
     loopEnabled: boolean;
     loopStart: number;
     loopEnd: number;
+    slowPracticeRatio: number;
+    showKeyboardShortcuts: boolean;
   };
   
   // Actions
@@ -72,17 +115,24 @@ interface AppState {
   togglePlan: () => void;
   toggleMetronome: () => void;
   toggleSettings: () => void;
+  toggleAchievements: () => void;
+  toggleStats: () => void;
   setPracticeMode: (mode: 'normal' | 'slow' | 'loop') => void;
   loadSong: (song: Song) => void;
   setCurrentDay: (day: number) => void;
   completeDay: (day: number) => void;
-  updatePracticeStats: (stats: { time?: number; sessions?: number; notes?: number }) => void;
+  updatePracticeStats: (stats: { time?: number; sessions?: number; notes?: number; slideNotes?: number; noteName?: string }) => void;
+  completeSong: (songId: string) => void;
+  recordPerfectRun: () => void;
   updateSettings: (newSettings: Partial<AppState['settings']>) => void;
   setLoop: (start: number, end: number) => void;
   clearLoop: () => void;
   getCurrentNote: () => Note | null;
   getLearningPlan: () => DayPlan[];
   getProgress: () => number;
+  getAchievements: () => Achievement[];
+  checkAndUnlockAchievements: () => void;
+  updatePracticeStreak: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -105,6 +155,8 @@ export const useAppStore = create<AppState>()(
       showMetronome: false,
       showSettings: false,
       practiceMode: 'normal', // 'normal', 'slow', 'loop'
+      showAchievements: false,
+      showStats: false,
       
       // Learning State
       currentDay: 1,
@@ -112,8 +164,20 @@ export const useAppStore = create<AppState>()(
       practiceStats: {
         totalTime: 0,
         sessionsCompleted: 0,
-        notesPlayed: 0
+        notesPlayed: 0,
+        slideNotesPlayed: 0,
+        songsCompleted: 0,
+        perfectRuns: 0,
+        categoriesExplored: [],
+        notesPlayedToday: 0,
+        uniqueNotesPlayed: []
       },
+      
+      // Achievement & Streak State
+      achievements: [],
+      practiceStreak: 0,
+      lastPracticeDate: null,
+      completedSongs: [],
       
       // Song State
       currentSong: DEFAULT_SONG,
@@ -128,7 +192,9 @@ export const useAppStore = create<AppState>()(
         countIn: true,
         loopEnabled: false,
         loopStart: 0,
-        loopEnd: 0
+        loopEnd: 0,
+        slowPracticeRatio: 0.5,
+        showKeyboardShortcuts: true
       },
       
       // Actions
@@ -273,6 +339,18 @@ export const useAppStore = create<AppState>()(
           bpm: song.bpm || 120
         });
         get().parseAndLoadSequence(song.notes);
+        // Track category exploration
+        const category = song.category;
+        const { practiceStats } = get();
+        if (!practiceStats.categoriesExplored.includes(category)) {
+          set((state) => ({
+            practiceStats: {
+              ...state.practiceStats,
+              categoriesExplored: [...state.practiceStats.categoriesExplored, category]
+            }
+          }));
+        }
+        get().checkAndUnlockAchievements();
       },
       
       // Learning actions
@@ -286,14 +364,70 @@ export const useAppStore = create<AppState>()(
       },
       
       updatePracticeStats: (stats) => {
+        const { practiceStats } = get();
+        const newUniqueNotes = stats.noteName && !practiceStats.uniqueNotesPlayed.includes(stats.noteName)
+          ? [...practiceStats.uniqueNotesPlayed, stats.noteName]
+          : practiceStats.uniqueNotesPlayed;
+        
         set((state) => ({
           practiceStats: {
+            ...state.practiceStats,
             totalTime: state.practiceStats.totalTime + (stats.time || 0),
             sessionsCompleted: state.practiceStats.sessionsCompleted + (stats.sessions || 0),
-            notesPlayed: state.practiceStats.notesPlayed + (stats.notes || 0)
+            notesPlayed: state.practiceStats.notesPlayed + (stats.notes || 0),
+            slideNotesPlayed: state.practiceStats.slideNotesPlayed + (stats.slideNotes || 0),
+            notesPlayedToday: state.practiceStats.notesPlayedToday + (stats.notes || 0),
+            uniqueNotesPlayed: newUniqueNotes
           }
         }));
+        
+        // Check for first note achievement
+        if (stats.notes && stats.notes > 0) {
+          get().updatePracticeStreak();
+          get().checkAndUnlockAchievements();
+        }
       },
+      
+      completeSong: (songId) => {
+        const { completedSongs, bpm } = get();
+        if (!completedSongs.includes(songId)) {
+          set({
+            completedSongs: [...completedSongs, songId]
+          });
+        }
+        set((state) => ({
+          practiceStats: {
+            ...state.practiceStats,
+            songsCompleted: state.practiceStats.songsCompleted + 1
+          }
+        }));
+        
+        // Check for speed achievement
+        if (bpm >= 150) {
+          const { achievements } = get();
+          if (!achievements.includes('speed-demon')) {
+            set({ achievements: [...achievements, 'speed-demon'] });
+          }
+        }
+        
+        get().checkAndUnlockAchievements();
+      },
+      
+      recordPerfectRun: () => {
+        set((state) => ({
+          practiceStats: {
+            ...state.practiceStats,
+            perfectRuns: state.practiceStats.perfectRuns + 1
+          }
+        }));
+        const { achievements } = get();
+        if (!achievements.includes('perfect-run')) {
+          set({ achievements: [...achievements, 'perfect-run'] });
+        }
+      },
+      
+      toggleAchievements: () => set((state) => ({ showAchievements: !state.showAchievements })),
+      toggleStats: () => set((state) => ({ showStats: !state.showStats })),
       
       // Settings actions
       updateSettings: (newSettings) => {
@@ -324,6 +458,109 @@ export const useAppStore = create<AppState>()(
         }));
       },
       
+      // Achievement system
+      checkAndUnlockAchievements: () => {
+        const { achievements, practiceStats, completedSongs, practiceStreak } = get();
+        const newAchievements = [...achievements];
+        
+        // First note
+        if (practiceStats.notesPlayed >= 1 && !achievements.includes('first-note')) {
+          newAchievements.push('first-note');
+        }
+        
+        // First song
+        if (practiceStats.songsCompleted >= 1 && !achievements.includes('first-song')) {
+          newAchievements.push('first-song');
+        }
+        
+        // 10 songs
+        if (completedSongs.length >= 10 && !achievements.includes('ten-songs')) {
+          newAchievements.push('ten-songs');
+        }
+        
+        // Practice streaks
+        if (practiceStreak >= 3 && !achievements.includes('practice-streak-3')) {
+          newAchievements.push('practice-streak-3');
+        }
+        if (practiceStreak >= 7 && !achievements.includes('practice-streak-7')) {
+          newAchievements.push('practice-streak-7');
+        }
+        if (practiceStreak >= 30 && !achievements.includes('practice-streak-30')) {
+          newAchievements.push('practice-streak-30');
+        }
+        
+        // Time played (totalTime is in minutes)
+        if (practiceStats.totalTime >= 60 && !achievements.includes('hour-played')) {
+          newAchievements.push('hour-played');
+        }
+        if (practiceStats.totalTime >= 300 && !achievements.includes('five-hours')) {
+          newAchievements.push('five-hours');
+        }
+        
+        // Slide notes
+        if (practiceStats.slideNotesPlayed >= 100 && !achievements.includes('slide-master')) {
+          newAchievements.push('slide-master');
+        }
+        
+        // Chromatic (all 12 notes)
+        if (practiceStats.uniqueNotesPlayed.length >= 12 && !achievements.includes('chromatic-complete')) {
+          newAchievements.push('chromatic-complete');
+        }
+        
+        // Explorer (5 categories)
+        if (practiceStats.categoriesExplored.length >= 5 && !achievements.includes('explorer')) {
+          newAchievements.push('explorer');
+        }
+        
+        // Time-based achievements
+        const hour = new Date().getHours();
+        if (hour >= 0 && hour < 5 && !achievements.includes('night-owl')) {
+          newAchievements.push('night-owl');
+        }
+        if (hour >= 5 && hour < 7 && !achievements.includes('early-bird')) {
+          newAchievements.push('early-bird');
+        }
+        
+        if (newAchievements.length !== achievements.length) {
+          set({ achievements: newAchievements });
+        }
+      },
+      
+      updatePracticeStreak: () => {
+        const today = new Date().toISOString().split('T')[0];
+        const { lastPracticeDate, practiceStreak } = get();
+        
+        if (lastPracticeDate === today) {
+          return; // Already practiced today
+        }
+        
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        
+        if (lastPracticeDate === yesterdayStr) {
+          // Consecutive day
+          set({
+            practiceStreak: practiceStreak + 1,
+            lastPracticeDate: today,
+            practiceStats: {
+              ...get().practiceStats,
+              notesPlayedToday: 0
+            }
+          });
+        } else {
+          // Streak broken or first practice
+          set({
+            practiceStreak: 1,
+            lastPracticeDate: today,
+            practiceStats: {
+              ...get().practiceStats,
+              notesPlayedToday: 0
+            }
+          });
+        }
+      },
+      
       // Getters
       getCurrentNote: () => {
         const { currentIndex, sequence, transientNote, isPlaying } = get();
@@ -343,6 +580,14 @@ export const useAppStore = create<AppState>()(
         const { currentIndex, sequence } = get();
         if (sequence.length === 0) return 0;
         return ((currentIndex + 1) / sequence.length) * 100;
+      },
+      
+      getAchievements: () => {
+        const { achievements } = get();
+        return ACHIEVEMENTS.map(a => ({
+          ...a,
+          unlockedAt: achievements.includes(a.id) ? Date.now() : undefined
+        }));
       }
     }),
     {
@@ -353,7 +598,11 @@ export const useAppStore = create<AppState>()(
         practiceStats: state.practiceStats,
         currentDay: state.currentDay,
         bpm: state.bpm,
-        volume: state.volume
+        volume: state.volume,
+        achievements: state.achievements,
+        practiceStreak: state.practiceStreak,
+        lastPracticeDate: state.lastPracticeDate,
+        completedSongs: state.completedSongs
       })
     }
   )

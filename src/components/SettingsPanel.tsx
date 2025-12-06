@@ -116,7 +116,7 @@ const SettingsPanel = () => {
               </button>
             </div>
 
-            {[{ key: 'showNoteNames', label: 'Show note names' }, { key: 'showOctave', label: 'Show octave numbers' }, { key: 'highlightSlide', label: 'Highlight slide usage' }, { key: 'countIn', label: 'Enable count-in' }].map(({ key, label }) => (
+            {[{ key: 'showNoteNames', label: 'Show note names' }, { key: 'showOctave', label: 'Show octave numbers' }, { key: 'highlightSlide', label: 'Highlight slide usage' }, { key: 'countIn', label: 'Enable count-in' }, { key: 'showKeyboardShortcuts', label: 'Enable keyboard shortcuts' }].map(({ key, label }) => (
               <div className="flex items-center justify-between" key={key}>
                 <span className="text-sm text-white">{label}</span>
                 <button
@@ -130,6 +130,31 @@ const SettingsPanel = () => {
                 </button>
               </div>
             ))}
+          </div>
+
+          {/* Practice Settings */}
+          <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 space-y-3 md:col-span-2">
+            <h3 className="text-sm font-bold text-slate-300 mb-3">Practice Settings</h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-white">Slow Practice Speed</p>
+                  <p className="text-xs text-slate-500">Percentage of normal tempo</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={25}
+                    max={75}
+                    step={5}
+                    value={settings.slowPracticeRatio * 100}
+                    onChange={(e) => updateSettings({ slowPracticeRatio: parseInt(e.target.value, 10) / 100 })}
+                    className="w-24 accent-cyan-500"
+                  />
+                  <span className="text-sm font-mono text-cyan-400 w-12 text-right">{Math.round(settings.slowPracticeRatio * 100)}%</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

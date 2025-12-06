@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from './store/appStore';
 import audioEngine from './utils/audioEngine';
+import { useKeyboardShortcuts, KEYBOARD_SHORTCUTS } from './hooks/useKeyboardShortcuts';
 
 // Components
 import Header from './components/Header';
@@ -14,6 +15,9 @@ import SongBrowser from './components/SongBrowser';
 import SequenceStats from './components/SequenceStats';
 import SettingsPanel from './components/SettingsPanel';
 import Piano from './components/Piano';
+import AchievementsPanel from './components/AchievementsPanel';
+import BreathTrainer from './components/BreathTrainer';
+import SongTips from './components/SongTips';
 
 function App() {
   const { 
@@ -22,13 +26,21 @@ function App() {
     inputText,
     updatePracticeStats,
     showSettings,
-    toggleSettings,
+    showAchievements,
+    toggleAchievements,
+    practiceStreak,
+    achievements,
     settings
   } = useAppStore();
   
   const [showMetronome, setShowMetronome] = useState(false);
   const [showSongBrowser, setShowSongBrowser] = useState(false);
   const [showPiano, setShowPiano] = useState(false);
+  const [showBreathTrainer, setShowBreathTrainer] = useState(false);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+
+  // Enable keyboard shortcuts
+  useKeyboardShortcuts();
 
   // Parse initial input on mount
   useEffect(() => {
@@ -45,7 +57,7 @@ function App() {
   // Track session time
   useEffect(() => {
     const interval = setInterval(() => {
-      updatePracticeStats({ time: 1 }); // Add 1 second
+      updatePracticeStats({ time: 1 }); // Add 1 minute
     }, 60000); // Update every minute
 
     return () => clearInterval(interval);
@@ -56,6 +68,17 @@ function App() {
       
       {/* Header */}
       <Header onMetronomeClick={() => setShowMetronome(true)} />
+
+      {/* Streak Banner (shown when streak >= 3) */}
+      {practiceStreak >= 3 && (
+        <div className="bg-gradient-to-r from-amber-600/20 via-orange-500/20 to-amber-600/20 border-b border-amber-500/30">
+          <div className="max-w-6xl mx-auto px-4 py-2 flex items-center justify-center gap-2 text-amber-400">
+            <span className="text-lg">🔥</span>
+            <span className="font-bold">{practiceStreak} Day Streak!</span>
+            <span className="text-sm text-amber-500/80">Keep it going!</span>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto p-4 md:p-6 flex flex-col gap-6">
@@ -130,21 +153,36 @@ function App() {
             <div className="space-y-2">
               <button 
                 onClick={() => setShowSongBrowser(true)}
-                className="w-full text-left p-3 bg-slate-900/50 hover:bg-slate-700/50 rounded-lg transition-colors text-sm text-slate-300"
+                className="w-full text-left p-3 bg-slate-900/50 hover:bg-slate-700/50 rounded-lg transition-colors text-sm text-slate-300 flex items-center gap-2"
               >
-                📚 Browse Song Library
+                <span>📚</span> Browse Song Library
+                <span className="ml-auto text-xs text-slate-500">50+ songs</span>
               </button>
               <button 
                 onClick={() => setShowMetronome(true)}
-                className="w-full text-left p-3 bg-slate-900/50 hover:bg-slate-700/50 rounded-lg transition-colors text-sm text-slate-300"
+                className="w-full text-left p-3 bg-slate-900/50 hover:bg-slate-700/50 rounded-lg transition-colors text-sm text-slate-300 flex items-center gap-2"
               >
-                🎵 Open Metronome
+                <span>🎵</span> Open Metronome
               </button>
               <button 
-                onClick={toggleSettings}
-                className="w-full text-left p-3 bg-slate-900/50 hover:bg-slate-700/50 rounded-lg transition-colors text-sm text-slate-300"
+                onClick={() => setShowBreathTrainer(true)}
+                className="w-full text-left p-3 bg-slate-900/50 hover:bg-slate-700/50 rounded-lg transition-colors text-sm text-slate-300 flex items-center gap-2"
               >
-                ⚙️ Settings
+                <span>💨</span> Breath Training
+                <span className="ml-auto text-xs text-cyan-500">New!</span>
+              </button>
+              <button 
+                onClick={toggleAchievements}
+                className="w-full text-left p-3 bg-slate-900/50 hover:bg-slate-700/50 rounded-lg transition-colors text-sm text-slate-300 flex items-center gap-2"
+              >
+                <span>🏆</span> Achievements
+                <span className="ml-auto text-xs text-amber-400">{achievements.length} unlocked</span>
+              </button>
+              <button 
+                onClick={() => setShowShortcutsHelp(true)}
+                className="w-full text-left p-3 bg-slate-900/50 hover:bg-slate-700/50 rounded-lg transition-colors text-sm text-slate-300 flex items-center gap-2"
+              >
+                <span>⌨️</span> Keyboard Shortcuts
               </button>
             </div>
           </div>
@@ -154,7 +192,7 @@ function App() {
         <footer className="text-center text-xs text-slate-600 py-4 border-t border-slate-800">
           <p>HarpHero — Chromatic Harmonica Learning App</p>
           <p className="mt-1">
-            Built for 12-hole chromatic harmonica in C • Solo tuning
+            Built for 12-hole chromatic harmonica in C • Solo tuning • 50+ songs included
           </p>
         </footer>
       </main>
@@ -174,6 +212,42 @@ function App() {
 
       {/* Settings Modal */}
       {showSettings && <SettingsPanel />}
+
+      {/* Achievements Modal */}
+      {showAchievements && <AchievementsPanel />}
+
+      {/* Breath Trainer Modal */}
+      {showBreathTrainer && <BreathTrainer onClose={() => setShowBreathTrainer(false)} />}
+
+      {/* Song Tips Overlay */}
+      <SongTips />
+
+      {/* Keyboard Shortcuts Help Modal */}
+      {showShortcutsHelp && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowShortcutsHelp(false)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <span>⌨️</span> Keyboard Shortcuts
+            </h2>
+            <div className="space-y-2">
+              {KEYBOARD_SHORTCUTS.map((shortcut, i) => (
+                <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-slate-800/50">
+                  <span className="text-slate-300">{shortcut.action}</span>
+                  <kbd className="px-2 py-1 rounded bg-slate-700 text-amber-400 font-mono text-sm">
+                    {shortcut.key}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowShortcutsHelp(false)}
+              className="mt-6 w-full py-2 rounded-lg bg-amber-500 text-slate-900 font-semibold hover:bg-amber-400 transition-colors"
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,3 +10,6 @@ export { default as SongBrowser } from './SongBrowser';
 export { default as SequenceStats } from './SequenceStats';
 export { default as SettingsPanel } from './SettingsPanel';
 export { default as Piano } from './Piano';
+export { default as AchievementsPanel } from './AchievementsPanel';
+export { default as BreathTrainer } from './BreathTrainer';
+export { default as SongTips } from './SongTips';

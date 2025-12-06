@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, MouseEvent } from 'react';
-import { Play, Pause, SkipBack, SkipForward, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, RotateCcw, Volume2, VolumeX, Repeat, Turtle, Zap } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { audioEngine } from '../utils/audioEngine';
 import { getFrequency } from '../utils/noteMappings';
@@ -12,6 +12,7 @@ const PlaybackControls = () => {
     sequence,
     currentIndex,
     settings,
+    practiceMode,
     togglePlay,
     stop,
     nextNote,
@@ -19,7 +20,13 @@ const PlaybackControls = () => {
     setBpm,
     setVolume,
     setCurrentIndex,
-    getProgress
+    getProgress,
+    setPracticeMode,
+    setLoop,
+    clearLoop,
+    updatePracticeStats,
+    completeSong,
+    currentSong
   } = useAppStore();
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -65,8 +72,23 @@ const PlaybackControls = () => {
     if (currentNote && !currentNote.error && !currentNote.isRest && isPlaying && currentNote.pitch) {
       const duration = (currentNote.duration?.beats || 1) * (60 / bpm);
       audioEngine.playHarmonicaNote(currentNote, duration);
+      
+      // Track stats - using queueMicrotask to avoid state update during render
+      queueMicrotask(() => {
+        updatePracticeStats({ 
+          notes: 1, 
+          slideNotes: currentNote.slide ? 1 : 0,
+          noteName: currentNote.pitch?.replace(/\d/g, '') // Just the note name without octave
+        });
+        
+        // Check if song completed
+        if (currentIndex === sequence.length - 1 && currentSong) {
+          completeSong(currentSong.id);
+        }
+      });
     }
-  }, [currentIndex, isPlaying, sequence, bpm]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex, isPlaying, bpm]);
 
   // Update volume
   useEffect(() => {
@@ -254,6 +276,63 @@ const PlaybackControls = () => {
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
           <span>Audio Ready</span>
         </div>
+      </div>
+
+      {/* Practice Mode Controls */}
+      <div className="flex flex-wrap items-center justify-center gap-3 mt-4 pt-4 border-t border-slate-700">
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <span className="font-semibold uppercase tracking-wider">Practice Mode:</span>
+        </div>
+        
+        <button
+          onClick={() => setPracticeMode('normal')}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+            practiceMode === 'normal'
+              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
+              : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+          }`}
+        >
+          <Zap className="w-4 h-4" />
+          Normal
+        </button>
+
+        <button
+          onClick={() => {
+            setPracticeMode('slow');
+            setBpm(Math.floor(bpm * settings.slowPracticeRatio));
+          }}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+            practiceMode === 'slow'
+              ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
+              : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+          }`}
+        >
+          <Turtle className="w-4 h-4" />
+          Slow (50%)
+        </button>
+
+        <button
+          onClick={() => {
+            if (settings.loopEnabled) {
+              clearLoop();
+              setPracticeMode('normal');
+            } else {
+              // Set loop from current position for 8 notes
+              const start = currentIndex;
+              const end = Math.min(currentIndex + 7, sequence.length - 1);
+              setLoop(start, end);
+              setPracticeMode('loop');
+            }
+          }}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+            settings.loopEnabled
+              ? 'bg-green-500/20 text-green-400 border border-green-500/50'
+              : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+          }`}
+        >
+          <Repeat className="w-4 h-4" />
+          {settings.loopEnabled ? `Loop ${settings.loopStart + 1}-${settings.loopEnd + 1}` : 'Loop Section'}
+        </button>
       </div>
     </div>
   );

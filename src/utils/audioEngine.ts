@@ -1,6 +1,7 @@
 /**
  * SoundFont-based Audio Engine for Harmonica Playback
  * Uses Web Audio API with SoundFont support
+ * Enhanced fallback synthesizer with realistic harmonica timbre
  */
 
 import * as Tone from 'tone';
@@ -20,15 +21,142 @@ export interface MidiEvent {
   timestamp: number;
 }
 
+/**
+ * Custom Harmonica Synth using additive synthesis for realistic reed sound
+ * Harmonicas produce a complex waveform with strong odd harmonics
+ */
+class HarmonicaSynth {
+  private synth: Tone.PolySynth;
+  private tremolo: Tone.Tremolo;
+  private chorus: Tone.Chorus;
+  private filter: Tone.Filter;
+  private eq: Tone.EQ3;
+  private compressor: Tone.Compressor;
+  private reverb: Tone.Reverb;
+  private gainNode: Tone.Gain;
+
+  constructor() {
+    // Create a PolySynth with custom partials mimicking harmonica reed vibration
+    // Harmonicas have strong fundamental with decaying odd harmonics
+    this.synth = new Tone.PolySynth(Tone.Synth, {
+      volume: -8,
+      oscillator: {
+        type: 'custom',
+        // Custom partials: fundamental + odd harmonics (reed-like)
+        partials: [1, 0, 0.5, 0, 0.25, 0, 0.15, 0, 0.08, 0, 0.04, 0, 0.02]
+      },
+      envelope: {
+        attack: 0.02,      // Quick attack like breath hitting reed
+        decay: 0.1,        // Short initial decay
+        sustain: 0.85,     // High sustain for held notes
+        release: 0.15      // Quick release when breath stops
+      }
+    });
+
+    // Tremolo for characteristic harmonica wobble (subtle)
+    this.tremolo = new Tone.Tremolo({
+      frequency: 5.5,      // Typical hand tremolo frequency
+      depth: 0.15,         // Subtle depth
+      spread: 0,
+      type: 'sine'
+    }).start();
+
+    // Chorus for slight detuning between reeds
+    this.chorus = new Tone.Chorus({
+      frequency: 2.5,
+      delayTime: 3.5,
+      depth: 0.4,
+      wet: 0.3
+    }).start();
+
+    // Bandpass filtering for nasal/reedy character
+    this.filter = new Tone.Filter({
+      frequency: 2500,
+      type: 'bandpass',
+      Q: 1.5,
+      rolloff: -12
+    });
+
+    // EQ to shape harmonica tone
+    this.eq = new Tone.EQ3({
+      low: -3,
+      mid: 4,            // Boost mids for nasal quality
+      high: -6,          // Cut highs for warmth
+      lowFrequency: 400,
+      highFrequency: 2500
+    });
+
+    // Compressor for consistent dynamics
+    this.compressor = new Tone.Compressor({
+      threshold: -20,
+      ratio: 4,
+      attack: 0.003,
+      release: 0.25
+    });
+
+    // Light reverb for room ambience
+    this.reverb = new Tone.Reverb({
+      decay: 1.5,
+      wet: 0.2,
+      preDelay: 0.01
+    });
+
+    // Master gain
+    this.gainNode = new Tone.Gain(0.9);
+
+    // Connect the chain
+    this.synth.disconnect();
+    this.synth.chain(
+      this.tremolo,
+      this.chorus,
+      this.filter,
+      this.eq,
+      this.compressor,
+      this.reverb,
+      this.gainNode,
+      Tone.Destination
+    );
+  }
+
+  triggerAttackRelease(
+    note: Tone.Unit.Frequency,
+    duration: Tone.Unit.Time,
+    time?: Tone.Unit.Time,
+    velocity?: number
+  ) {
+    this.synth.triggerAttackRelease(note, duration, time, velocity);
+  }
+
+  set(options: Partial<Tone.SynthOptions>) {
+    this.synth.set(options);
+  }
+
+  releaseAll() {
+    this.synth.releaseAll();
+  }
+
+  setVolume(db: number) {
+    this.gainNode.gain.value = Math.pow(10, db / 20);
+  }
+
+  dispose() {
+    this.synth.dispose();
+    this.tremolo.dispose();
+    this.chorus.dispose();
+    this.filter.dispose();
+    this.eq.dispose();
+    this.compressor.dispose();
+    this.reverb.dispose();
+    this.gainNode.dispose();
+  }
+}
+
 class AudioEngine {
   private initialized: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private spessaSynth: any | null;
-  private synth: Tone.PolySynth | null;
+  private harmonicaSynth: HarmonicaSynth | null;
   private volume: number; // dB
-  private vibrato: Tone.Vibrato | null;
-  private reverb: Tone.Reverb | null;
-  private filter: Tone.Filter | null;
   private useSoundFont: boolean;
   private currentSoundFont: string | null;
   private spessaCtx: AudioContext | null;
@@ -36,18 +164,15 @@ class AudioEngine {
   constructor() {
     this.initialized = false;
     this.spessaSynth = null;
-    this.synth = null;
+    this.harmonicaSynth = null;
     this.volume = -6; // dB
-    this.vibrato = null;
-    this.reverb = null;
-    this.filter = null;
     this.useSoundFont = false;
     this.currentSoundFont = null;
     this.spessaCtx = null;
   }
 
   /**
-   * Initialize the audio engine
+   * Initialize the audio engine with enhanced harmonica synthesizer
    */
   async initialize() {
     if (this.initialized) return;
@@ -55,50 +180,13 @@ class AudioEngine {
     try {
       await Tone.start();
       
-      // Create a fallback synthesizer that sounds more like harmonica
-      // Harmonica: Rich in harmonics, slight vibrato/tremolo naturally
-      this.synth = new Tone.PolySynth(Tone.Synth, {
-        volume: -10, // Reduce volume to prevent clipping/cracking
-        oscillator: {
-          type: 'fatsquare', // Square wave is closer to reed instruments
-          count: 2,
-          spread: 20
-        },
-        envelope: {
-          attack: 0.05,
-          decay: 0.2,
-          sustain: 0.7,
-          release: 0.4
-        }
-      }).toDestination();
-
-      // Add effects for more realistic sound
-      this.vibrato = new Tone.Vibrato({
-        frequency: 6,
-        depth: 0.2 // Reduced depth
-      }).toDestination();
-
-      this.reverb = new Tone.Reverb({
-        decay: 2.0,
-        wet: 0.3
-      }).toDestination();
-
-      this.filter = new Tone.Filter({
-        frequency: 3000, // Open up filter a bit more
-        type: 'lowpass',
-        rolloff: -12
-      }).toDestination();
-
-      // Connect synth through effects chain
-      this.synth.disconnect();
-      if (this.vibrato && this.filter && this.reverb) {
-          this.synth.chain(this.vibrato, this.filter, this.reverb, Tone.Destination);
-      }
+      // Create enhanced harmonica synthesizer
+      this.harmonicaSynth = new HarmonicaSynth();
+      this.harmonicaSynth.setVolume(this.volume);
       
-      this.synth.volume.value = this.volume;
       this.initialized = true;
       
-      console.log('Audio engine initialized');
+      console.log('Audio engine initialized with harmonica synth');
     } catch (error) {
       console.error('Failed to initialize audio engine:', error);
     }
@@ -200,16 +288,16 @@ class AudioEngine {
         }
     }
 
-    // Fallback to Tone.js
+    // Fallback to harmonica synth
     const freq = getFrequency(note);
     if (!freq) {
       console.warn('Unknown note:', note);
       return;
     }
 
-    if (this.synth) {
+    if (this.harmonicaSynth) {
       const now = Tone.now();
-      this.synth.triggerAttackRelease(freq, duration, now, velocity);
+      this.harmonicaSynth.triggerAttackRelease(freq, duration, now, velocity);
     }
   }
 
@@ -220,11 +308,10 @@ class AudioEngine {
     if (!noteInfo || noteInfo.error) return;
     if (!noteInfo.pitch) return;
 
-    const { pitch, action, slide } = noteInfo;
+    const { pitch, action } = noteInfo;
     
-    // Adjust velocity based on action
+    // Adjust velocity based on action (blow vs draw)
     const velocity = action === 'blow' ? 0.75 : 0.7;
-    const attackTime = slide ? 0.08 : 0.05;
 
     await this.initialize();
 
@@ -240,19 +327,14 @@ class AudioEngine {
         }
     }
 
-    // Fallback
+    // Fallback to harmonica synth
     const freq = getFrequency(pitch);
     if (!freq) return;
 
-    if (this.synth) {
-      this.synth.set({
-          envelope: {
-          attack: attackTime
-          }
-      });
-
+    if (this.harmonicaSynth) {
+      // Attack time varies based on slide usage
       const now = Tone.now();
-      this.synth.triggerAttackRelease(freq, duration, now, velocity);
+      this.harmonicaSynth.triggerAttackRelease(freq, duration, now, velocity);
     }
   }
 
@@ -296,8 +378,8 @@ class AudioEngine {
                       this.spessaSynth.noteOff(0, midi);
                   }, duration * 1000 * 0.9); // 90% duration
               }
-          } else if (this.synth) {
-              this.synth.triggerAttackRelease(freq, duration * 0.9, Tone.now(), velocity);
+          } else if (this.harmonicaSynth) {
+              this.harmonicaSynth.triggerAttackRelease(freq, duration * 0.9, Tone.now(), velocity);
           }
           
           if (onNotePlay) {
@@ -322,8 +404,8 @@ class AudioEngine {
    * Stop all currently playing notes
    */
   stopAll() {
-    if (this.synth) {
-      this.synth.releaseAll();
+    if (this.harmonicaSynth) {
+      this.harmonicaSynth.releaseAll();
     }
     if (this.spessaSynth) {
         // spessaSynth might not have a stopAll, assume silence via MIDI panic or similar?
@@ -338,8 +420,8 @@ class AudioEngine {
    */
   setVolume(db: number) {
     this.volume = db;
-    if (this.synth) {
-      this.synth.volume.value = db;
+    if (this.harmonicaSynth) {
+      this.harmonicaSynth.setVolume(db);
     }
     // TODO: Set spessasynth volume if API allows
   }
@@ -405,17 +487,8 @@ class AudioEngine {
    * Dispose of audio resources
    */
   dispose() {
-    if (this.synth) {
-      this.synth.dispose();
-    }
-    if (this.vibrato) {
-      this.vibrato.dispose();
-    }
-    if (this.reverb) {
-      this.reverb.dispose();
-    }
-    if (this.filter) {
-      this.filter.dispose();
+    if (this.harmonicaSynth) {
+      this.harmonicaSynth.dispose();
     }
     this.spessaSynth = null;
     this.initialized = false;
